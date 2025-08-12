@@ -1,0 +1,35 @@
+.keys-table {
+  width: 90%;
+  margin: 20px auto;
+  border-collapse: collapse;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.keys-table th, .keys-table td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: center;
+}
+.keys-table th {
+  background: #f5f5f5;
+  font-weight: bold;
+}
+.keys-table-empty {
+  text-align: center;
+  margin: 30px;
+  color: #888;
+}
+.keys-table button {
+  margin: 0 4px;
+  padding: 4px 10px;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 3px;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.keys-table button:hover {
+  background: #1565c0;
+}

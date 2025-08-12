@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "builds": [
+    { "src": "api/index.js", "use": "@vercel/node" },
+    { "src": "dashboard/dist/**", "use": "@vercel/static" }
+  ],
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin/" },
+    { "source": "/admin/assets/(.*)", "destination": "/dashboard/dist/assets/$1" },
+    { "source": "/admin/(.*)", "destination": "/dashboard/dist/index.html" },
+
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/admin/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/admin/auth/(.*)", "destination": "/api/index.js" },
+
+    { "source": "/(.*)", "destination": "/api/index.js" }
+  ]
+}

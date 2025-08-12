@@ -1,0 +1,15 @@
+.status-bar {
+  width: 100%;
+  padding: 10px;
+  font-weight: bold;
+  text-align: center;
+  background: #f3f3f3;
+  border-bottom: 1px solid #ddd;
+  font-size: 1.1rem;
+}
+.status-bar.online {
+  color: #1aaf1a;
+}
+.status-bar.offline {
+  color: #d32f2f;
+}
