@@ -25,7 +25,7 @@ class Application {
     this.app = express();
   // Enable trust proxy only in production (helps with real client IP and rate limiting)
     if (process.env.NODE_ENV === 'production' || config.nodeEnv === 'production') {
-      this.app.set('trust proxy', true);
+      this.app.set('trust proxy', 1); // Corrigido para evitar erro do express-rate-limit
     }
     this.server = null;
   }
