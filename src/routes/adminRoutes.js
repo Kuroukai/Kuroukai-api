@@ -7,7 +7,7 @@ const { handleValidationErrors } = require('../middleware/validation');
 const router = express.Router();
 
 // Canonicalize base path: ensure trailing slash for the admin root
-router.get('', (req, res) => res.redirect(301, '/admin/'));
+// router.get('', (req, res) => res.redirect(301, '/admin/'));
 
 // Admin authentication routes (public)
 router.post('/auth/login', [
@@ -34,19 +34,15 @@ function requireAuthOrRedirect(req, res, next) {
   const sessionToken = req.cookies?.admin_session;
 
   if (!sessionToken) {
-    // For API requests, return JSON 401 instead of redirect
-    const wantsJson = req.path.startsWith('/api') ||
-      req.xhr ||
-      (req.get('Accept') || '').includes('application/json');
-
-    if (wantsJson) {
+    // Para qualquer rota /admin/api/*, sempre retorna JSON 401
+    if (req.path.startsWith('/api')) {
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
-    // Redirect to login page for HTML navigation
+    // Para outras rotas, mantém o comportamento de redirecionar
     return res.redirect('/admin/login');
   }
 
-  // Use the auth middleware for validation
+  // Use o middleware de autenticação
   adminAuth.requireAuth(req, res, next);
 }
 
