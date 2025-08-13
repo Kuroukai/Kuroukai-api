@@ -203,8 +203,90 @@ function getClientIp(req) {
   ].filter(Boolean);
   candidates.push(...fallbacks);
 
-  const best = pickFirstPublic(candidates);
-  return best || 'unknown';
+  const bestPublic = pickFirstPublic(candidates);
+  // Also compute first valid (even if private) for environments wanting LAN/VPN IP
+  const firstValid = (() => {
+    for (const raw of candidates) {
+      const ip = normalize(raw);
+      if (net.isIP(ip)) return ip;
+    }
+    return '';
+  })();
+
+  const chosen = (require('../config').ipPreference === 'private') ? (firstValid || bestPublic) : (bestPublic || firstValid);
+  return chosen || 'unknown';
+}
+
+/**
+ * Return both IP variants for diagnostics (public-preferred and first-valid)
+ */
+function getIpVariants(req) {
+  const net = require('net');
+  const normalize = (ip) => {
+    if (!ip) return '';
+    ip = String(ip).trim();
+    if (ip.startsWith('[')) {
+      const end = ip.indexOf(']');
+      if (end !== -1) ip = ip.slice(1, end);
+    } else {
+      const colonIdx = ip.indexOf(':');
+      if (colonIdx !== -1 && ip.indexOf(':', colonIdx + 1) === -1) {
+        ip = ip.slice(0, colonIdx);
+      }
+    }
+    if (ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+    return ip;
+  };
+  const isPrivate = (ip) => {
+    if (!ip) return true;
+    if (ip === '127.0.0.1' || ip === '::1') return true;
+    if (ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
+    const o = ip.split('.').map(Number);
+    if (o.length === 4) {
+      if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return true;
+      if (o[0] === 169 && o[1] === 254) return true;
+    }
+    const low = ip.toLowerCase();
+    if (low.startsWith('fc') || low.startsWith('fd') || low.startsWith('fe80:')) return true;
+    return false;
+  };
+  const pickFirstPublic = (list) => {
+    for (const raw of list) {
+      const ip = normalize(raw);
+      if (net.isIP(ip) && !isPrivate(ip)) return ip;
+    }
+    for (const raw of list) {
+      const ip = normalize(raw);
+      if (net.isIP(ip)) return ip;
+    }
+    return '';
+  };
+  const headers = req.headers || {};
+  const candidates = [];
+  const fwd = headers['forwarded'];
+  if (fwd && typeof fwd === 'string') {
+    const parts = fwd.split(',');
+    for (const p of parts) {
+      const m = p.match(/for=([^;]+)/i);
+      if (m && m[1]) candidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
+    }
+  }
+  const directHeaders = ['cf-connecting-ip','true-client-ip','x-real-ip','x-client-ip','fastly-client-ip','x-cluster-client-ip','fly-client-ip'];
+  for (const h of directHeaders) {
+    const v = headers[h];
+    if (typeof v === 'string') candidates.push(v);
+  }
+  const xff = headers['x-forwarded-for'];
+  if (xff && typeof xff === 'string') candidates.push(...xff.split(',').map(s => s.trim()).filter(Boolean));
+  const fallbacks = [req.ip, req.connection && req.connection.remoteAddress, req.socket && req.socket.remoteAddress, req.connection && req.connection.socket && req.connection.socket.remoteAddress].filter(Boolean);
+  candidates.push(...fallbacks);
+
+  const publicIp = pickFirstPublic(candidates) || null;
+  const privateIp = (() => {
+    for (const raw of candidates) { const ip = normalize(raw); if (net.isIP(ip)) return ip; }
+    return null;
+  })();
+  return { publicIp, privateIp };
 }
 
 module.exports = {
@@ -214,5 +296,6 @@ module.exports = {
   getRemainingTime,
   sanitizeInput,
   isValidUUID,
-  getClientIp
+  getClientIp,
+  getIpVariants
 };

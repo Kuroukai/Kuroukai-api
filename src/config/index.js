@@ -45,7 +45,10 @@ const config = {
   // Logging configuration
   logging: {
     level: process.env.LOG_LEVEL || 'info'
-  }
+  },
+
+  // Client IP preference for display/logging: 'public' | 'private'
+  ipPreference: (process.env.IP_PREFERENCE || (process.env.NODE_ENV === 'development' ? 'private' : 'public')).toLowerCase()
 };
 
 module.exports = config;

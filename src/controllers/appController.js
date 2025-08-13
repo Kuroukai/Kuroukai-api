@@ -88,9 +88,10 @@ class AppController {
    * Simple endpoint to echo detected client IP (uses util.getClientIp)
    */
   getClientIp(req, res) {
-    const { getClientIp } = require('../utils/keyUtils');
+    const { getClientIp, getIpVariants } = require('../utils/keyUtils');
     const ip = getClientIp(req);
-    res.json({ ip, raw: {
+    const variants = getIpVariants(req);
+    res.json({ ip, variants, raw: {
       req_ip: req.ip,
       x_forwarded_for: req.headers['x-forwarded-for'] || null,
       x_real_ip: req.headers['x-real-ip'] || null,
