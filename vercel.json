@@ -7,12 +7,14 @@
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin/" },
+  { "source": "/admin/auth/(.*)", "destination": "/api/index.js" },
+  { "source": "/admin/api/(.*)", "destination": "/api/index.js" },
+  { "source": "/admin/login", "destination": "/api/index.js" },
+  { "source": "/admin/login/", "destination": "/api/index.js" },
     { "source": "/admin/assets/(.*)", "destination": "/dashboard/dist/assets/$1" },
     { "source": "/admin/(.*)", "destination": "/dashboard/dist/index.html" },
 
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/admin/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/admin/auth/(.*)", "destination": "/api/index.js" },
 
     { "source": "/(.*)", "destination": "/api/index.js" }
   ]

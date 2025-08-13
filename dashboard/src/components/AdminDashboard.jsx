@@ -21,18 +21,22 @@ function AdminDashboard() {
       const response = await fetch('/admin/api/session', {
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setIsAuthenticated(true);
         setUserSession(data.session);
       } else {
-        // Redirect to login if not authenticated
-        window.location.href = '/admin/login';
+        // Redirect to login if not authenticated (avoid loop if already there)
+        if (!location.pathname.startsWith('/admin/login')) {
+          window.location.href = '/admin/login';
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      window.location.href = '/admin/login';
+      if (!location.pathname.startsWith('/admin/login')) {
+        window.location.href = '/admin/login';
+      }
     } finally {
       setLoading(false);
     }
@@ -67,13 +71,13 @@ function AdminDashboard() {
 
   return (
     <div className="admin-dashboard">
-      <Sidebar 
+      <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onLogout={handleLogout}
         userSession={userSession}
       />
-      
+
       <main className="main-content">
         <div className="content-header">
           <h1 className="page-title">
