@@ -45,7 +45,7 @@ Copie o template e ajuste:
 Copy-Item .env.example .env
 ```
 
-Principais variáveis (ver .env.example para detalhes):
+O servidor carrega automaticamente o arquivo .env (dotenv). Principais variáveis (ver .env.example para detalhes):
 - PORT: porta do servidor (padrão 3000)
 - NODE_ENV: development|production
 - DATABASE_PATH: caminho do arquivo SQLite (./keys.db localmente)
@@ -54,6 +54,7 @@ Principais variáveis (ver .env.example para detalhes):
 - RATE_LIMIT_WINDOW / RATE_LIMIT_MAX: rate limiting por IP
 - DEFAULT_KEY_HOURS / MAX_KEY_HOURS: duração padrão e máxima das chaves
 - LOG_LEVEL: error|warn|info|debug
+- IP_PREFERENCE: public|private (preferência de IP mostrado em logs/UI; padrão private em dev)
 - ADMIN_USERNAME / ADMIN_PASSWORD: login do admin (sessão em memória)
 
 ## Como rodar
@@ -170,6 +171,8 @@ Build/Rotas no Vercel (`vercel.json`):
     - Qualquer outra rota → `api/index.js`
 
 Observação sobre lockfile no dashboard: o build usa `npm --prefix dashboard ci`. Se falhar por ausência de package-lock.json, troque para `npm --prefix dashboard install` localmente e/ou gere o lockfile.
+
+Nota: No Windows PowerShell, use curl.exe para evitar alias do Invoke-WebRequest nos exemplos.
 
 ## Script utilitário (CLI)
 
