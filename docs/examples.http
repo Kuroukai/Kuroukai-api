@@ -1,0 +1,41 @@
+### Kuroukai Free API - Exemplos de requests (REST Client VS Code)
+
+@base = http://localhost:3000
+@json = application/json
+
+### Health
+GET {{base}}/health
+
+### Criar chave
+POST {{base}}/api/keys/create
+Content-Type: {{json}}
+
+{
+  "user_id": "user123",
+  "hours": 24
+}
+
+### Validar chave
+GET {{base}}/api/keys/validate/{{keyId}}
+
+### Info da chave
+GET {{base}}/api/keys/info/{{keyId}}
+
+### Todas as chaves de um usuário
+GET {{base}}/api/keys/user/user123
+
+### Deletar chave
+DELETE {{base}}/api/keys/{{keyId}}
+
+### Admin - Login
+# Ajuste o host/origem conforme necessário
+POST {{base}}/admin/auth/login
+Content-Type: {{json}}
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Admin - Stats (após login; cookie admin_session deve estar presente)
+GET {{base}}/admin/api/stats
