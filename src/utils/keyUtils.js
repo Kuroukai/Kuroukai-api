@@ -94,23 +94,117 @@ function isValidUUID(uuid) {
 }
 
 /**
- * Extract client IP address from request (prioritizing real user IP)
+ * Extract client IP address from request, preferring real client IP behind proxies/CDNs
+ * Tries common headers, parses lists, normalizes IPv6/IPv4-mapped, and skips private ranges.
  * @param {Object} req - Express request object
- * @returns {string} IP address
+ * @returns {string} Best-effort public client IP or fallback
  */
 function getClientIp(req) {
-  const xForwardedFor = req.headers['x-forwarded-for'];
-  if (xForwardedFor && typeof xForwardedFor === 'string') {
-    const ips = xForwardedFor.split(',').map(ip => ip.trim()).filter(Boolean);
-    if (ips.length > 0) {
-      return ips[0];
+  const net = require('net');
+
+  const normalize = (ip) => {
+    if (!ip) return '';
+    // Remove port if present (e.g., '1.2.3.4:12345' or '[::1]:12345')
+    ip = String(ip).trim();
+    if (ip.startsWith('[')) {
+      const end = ip.indexOf(']');
+      if (end !== -1) ip = ip.slice(1, end);
+    } else {
+      const colonIdx = ip.indexOf(':');
+      // If there is a single ':' and it's IPv4:port, strip port. IPv6 will have multiple ':'
+      if (colonIdx !== -1 && ip.indexOf(':', colonIdx + 1) === -1) {
+        ip = ip.slice(0, colonIdx);
+      }
+    }
+    // Unwrap IPv4-mapped IPv6
+    if (ip.startsWith('::ffff:')) {
+      ip = ip.replace('::ffff:', '');
+    }
+    return ip;
+  };
+
+  const isPrivate = (ip) => {
+    // Quick checks for private/reserved ranges
+    if (!ip) return true;
+    if (ip === '127.0.0.1' || ip === '::1') return true;
+    if (ip.startsWith('10.')) return true;
+    if (ip.startsWith('192.168.')) return true;
+    const octets = ip.split('.').map(Number);
+    if (octets.length === 4) {
+      // 172.16.0.0 – 172.31.255.255
+      if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true;
+      // 169.254.0.0/16 link-local
+      if (octets[0] === 169 && octets[1] === 254) return true;
+    }
+    // IPv6 unique local (fc00::/7) or link-local (fe80::/10)
+    const lower = ip.toLowerCase();
+    if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
+    if (lower.startsWith('fe80:')) return true;
+    return false;
+  };
+
+  const pickFirstPublic = (list) => {
+    for (const raw of list) {
+      const ip = normalize(raw);
+      if (net.isIP(ip) && !isPrivate(ip)) return ip;
+    }
+    // Fallback to first valid even if private
+    for (const raw of list) {
+      const ip = normalize(raw);
+      if (net.isIP(ip)) return ip;
+    }
+    return '';
+  };
+
+  // Known headers set by various proxies/CDNs
+  const headers = req.headers || {};
+  const candidates = [];
+
+  // Forwarded: for="<client>", for=<client>
+  const fwd = headers['forwarded'];
+  if (fwd && typeof fwd === 'string') {
+    const parts = fwd.split(',');
+    for (const p of parts) {
+      const m = p.match(/for=([^;]+)/i);
+      if (m && m[1]) {
+        candidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
+      }
     }
   }
-  return req.ip ||
-         (req.connection && req.connection.remoteAddress) ||
-         (req.socket && req.socket.remoteAddress) ||
-         (req.connection && req.connection.socket ? req.connection.socket.remoteAddress : null) ||
-         'unknown';
+
+  // Common direct client IP headers
+  const directHeaders = [
+    'cf-connecting-ip',
+    'true-client-ip',
+    'x-real-ip',
+    'x-client-ip',
+    'fastly-client-ip',
+    'x-cluster-client-ip',
+    'fly-client-ip'
+  ];
+  for (const h of directHeaders) {
+    const v = headers[h];
+    if (typeof v === 'string') candidates.push(v);
+  }
+
+  // X-Forwarded-For may contain a list
+  const xff = headers['x-forwarded-for'];
+  if (xff && typeof xff === 'string') {
+    const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
+    candidates.push(...ips);
+  }
+
+  // Finally, Express/Node derived addresses
+  const fallbacks = [
+    req.ip,
+    req.connection && req.connection.remoteAddress,
+    req.socket && req.socket.remoteAddress,
+    req.connection && req.connection.socket && req.connection.socket.remoteAddress
+  ].filter(Boolean);
+  candidates.push(...fallbacks);
+
+  const best = pickFirstPublic(candidates);
+  return best || 'unknown';
 }
 
 module.exports = {

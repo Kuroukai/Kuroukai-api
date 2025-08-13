@@ -11,6 +11,9 @@ router.get('/health', appController.healthCheck.bind(appController));
 // Root endpoint
 router.get('/', appController.getApiInfo.bind(appController));
 
+// Show detected client IP (for debugging/verification)
+router.get('/ip', appController.getClientIp.bind(appController));
+
 // Test page for visual validation
 router.get('/test/:keyId', appController.getTestPage.bind(appController));
 

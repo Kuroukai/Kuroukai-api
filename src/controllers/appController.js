@@ -32,7 +32,8 @@ class AppController {
         'GET /api/keys/user/:userId': 'Get all keys for user',
         'DELETE /api/keys/:keyId': 'Delete a key by keyId',
         'GET /bind/:keyId.js': 'Get validation JS file',
-        'GET /test/:keyId': 'Test validation with visual interface',
+  'GET /test/:keyId': 'Test validation with visual interface',
+  'GET /ip': 'Show detected client IP (debug)',
         'GET /health': 'Health check'
       },
       documentation: {
@@ -81,6 +82,20 @@ class AppController {
 </html>`;
 
     res.send(html);
+  }
+
+  /**
+   * Simple endpoint to echo detected client IP (uses util.getClientIp)
+   */
+  getClientIp(req, res) {
+    const { getClientIp } = require('../utils/keyUtils');
+    const ip = getClientIp(req);
+    res.json({ ip, raw: {
+      req_ip: req.ip,
+      x_forwarded_for: req.headers['x-forwarded-for'] || null,
+      x_real_ip: req.headers['x-real-ip'] || null,
+      cf_connecting_ip: req.headers['cf-connecting-ip'] || null
+    }});
   }
 }
 

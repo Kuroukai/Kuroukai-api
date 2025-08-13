@@ -35,10 +35,11 @@ class AdminAuth {
       });
     }
 
-    const isValid = username === adminUser.username && password === adminUser.password;
+  const isValid = username === adminUser.username && password === adminUser.password;
 
     if (!isValid) {
-      logger.warn(`Failed admin login attempt from ${req.ip}`);
+      const { getClientIp } = require('../utils/keyUtils');
+      logger.warn(`Failed admin login attempt from ${getClientIp(req)}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -47,10 +48,11 @@ class AdminAuth {
 
     // Create session
     const sessionToken = this.generateSession();
+    const { getClientIp } = require('../utils/keyUtils');
     const sessionData = {
       id: sessionToken,
       createdAt: new Date(),
-      ip: req.ip,
+      ip: getClientIp(req),
       userAgent: req.get('User-Agent')
     };
 
@@ -64,7 +66,7 @@ class AdminAuth {
       sameSite: 'strict'
     });
 
-  logger.info(`Admin login successful from ${req.ip}`);
+  logger.info(`Admin login successful from ${sessionData.ip}`);
 
     return res.json({
       success: true,

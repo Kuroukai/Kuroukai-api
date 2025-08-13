@@ -7,13 +7,14 @@ const logger = new Logger(config.logging.level);
  * Global error handler middleware
  */
 function errorHandler(err, req, res, next) {
+  const { getClientIp } = require('../utils/keyUtils');
   // Log the error
   logger.error('Unhandled error:', {
     error: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
-    ip: req.ip
+    ip: getClientIp(req)
   });
 
   // Don't expose stack traces in production
@@ -30,10 +31,11 @@ function errorHandler(err, req, res, next) {
  * 404 handler middleware
  */
 function notFoundHandler(req, res) {
+  const { getClientIp } = require('../utils/keyUtils');
   logger.warn('Route not found:', {
     url: req.url,
     method: req.method,
-    ip: req.ip
+    ip: getClientIp(req)
   });
 
   res.status(404).json({
@@ -50,12 +52,13 @@ function requestLogger(req, res, next) {
 
   res.on('finish', () => {
     const duration = Date.now() - start;
+    const { getClientIp } = require('../utils/keyUtils');
     logger.info('Request completed:', {
       method: req.method,
       url: req.url,
       status: res.statusCode,
       duration: `${duration}ms`,
-      ip: req.ip
+      ip: getClientIp(req)
     });
   });
 
@@ -66,11 +69,12 @@ function requestLogger(req, res, next) {
  * Database error handler
  */
 function handleDatabaseError(err, req, res) {
+  const { getClientIp } = require('../utils/keyUtils');
   logger.error('Database error:', {
     error: err.message,
     url: req.url,
     method: req.method,
-    ip: req.ip
+    ip: getClientIp(req)
   });
 
   res.status(500).json({
