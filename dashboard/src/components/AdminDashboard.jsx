@@ -95,7 +95,7 @@ function AdminDashboard() {
           </div>
         </div>
 
-        <div className="content-body">
+  <div className={`content-body ${activeTab === 'settings' ? 'hide-scrollbar' : ''}`}>
           {activeTab === 'dashboard' && <DashboardStats />}
           {activeTab === 'keys' && <KeysManager />}
           {activeTab === 'settings' && <AdminSettings />}
