@@ -88,48 +88,14 @@ function KeysManager() {
     setLoading(false);
   };
 
-  const handleToggleActive = async (keyId) => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const key = keys.find(k => k.keyId === keyId);
-      const res = await fetch(`${API_BASE}/api/keys/${keyId}/active`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: !key.active })
-      });
-
-      if (!res.ok) throw new Error('Error updating status');
-
-      setKeys(keys.map(k => k.keyId === keyId ? { ...k, active: !k.active } : k));
-    } catch (err) {
-      setError('Error toggling active: ' + err.message);
-    }
-    setLoading(false);
+  // Desativado por enquanto: endpoint /api/keys/:keyId/active não existe no backend
+  const handleToggleActive = async (_keyId) => {
+    setError('Toggle active is not available yet');
   };
 
-  const handleEditExpiry = async (keyId) => {
-    const newExpiry = window.prompt('New expiration time (e.g.: 2025-12-31T23:59:59Z):');
-    if (!newExpiry) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch(`${API_BASE}/api/keys/${keyId}/expiry`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expiry: newExpiry })
-      });
-
-      if (!res.ok) throw new Error('Error editing expiry');
-
-      setKeys(keys.map(k => k.keyId === keyId ? { ...k, expiry: newExpiry } : k));
-    } catch (err) {
-      setError('Error editing expiry: ' + err.message);
-    }
-    setLoading(false);
+  // Desativado por enquanto: endpoint /api/keys/:keyId/expiry não existe no backend
+  const handleEditExpiry = async (_keyId) => {
+    setError('Edit expiry is not available yet');
   };
 
   const handleUserIdClick = (userId) => {
@@ -301,20 +267,7 @@ function KeysManager() {
                     <td>{key.usage || 0}</td>
                     <td>
                       <div className="action-buttons">
-                        <button
-                          onClick={() => handleToggleActive(key.keyId)}
-                          className={`action-btn ${key.active ? 'deactivate' : 'activate'}`}
-                          title={key.active ? 'Deactivate key' : 'Activate key'}
-                        >
-                          {key.active ? '⏸️' : '▶️'}
-                        </button>
-                        <button
-                          onClick={() => handleEditExpiry(key.keyId)}
-                          className="action-btn edit"
-                          title="Edit expiry date"
-                        >
-                          ⏰
-                        </button>
+                        {/* Ações desativadas até implementação dos endpoints */}
                         <button
                           onClick={() => handleDelete(key.keyId)}
                           className="action-btn delete"

@@ -1,0 +1,105 @@
+Prompt de revisão técnica para o repositório "Kuroukai-api"
+
+Objetivo
+- Analisar o código e a estrutura do projeto (API e dashboard) para propor melhorias objetivas.
+- Identificar e sugerir a remoção de código/arquivos/dependências inúteis ou desnecessários com justificativa e evidências.
+- Entregar recomendações priorizadas com foco em segurança, manutenibilidade, performance e DX.
+
+Escopo do repositório
+- Backend: Node.js/Express em `src/` (rotas, controllers, middleware, services, utils) + configs.
+- Dashboard: Vite + React em `dashboard/` (src/components etc.).
+- Scripts utilitários em `scripts/` e docs em `docs/`.
+
+Critérios de sucesso
+- Relatório com: (1) sumário executivo, (2) lista priorizada de recomendações [Alta|Média|Baixa], (3) lista de itens removíveis com evidência de não uso, (4) patches/diffs sugeridos, (5) passos de verificação/teste.
+- Nenhuma quebra de API pública sem aviso e plano de migração.
+
+Processo de análise (siga em ordem)
+1) Inventário rápido
+   - Mapear rotas e middlewares (src/routes, src/middleware) e seus controllers.
+   - Mapear serviços/utilitários e pontos de entrada (src/app.js).
+   - Mapear componentes do dashboard, entradas do Vite e scripts de build/dev.
+   - Levantar dependências reais vs declaradas (package.json na raiz e em `dashboard/`).
+
+2) Higiene e consistência
+   - Detectar imports/funções/variáveis não utilizadas; sugestão de remoção.
+   - Padronizar logs (níveis, formato) e tratamento de erros (middleware central com status/códigos consistentes).
+   - Conferir nomes e organização de arquivos (coerência entre rotas/controllers/services).
+
+3) Código morto e arquivos órfãos
+   - Listar arquivos não referenciados por nenhum import/require.
+   - Listar exports não utilizados e componentes não montados no dashboard.
+   - Verificar endpoints sem uso aparente (com base em rotas e chamadas conhecidas).
+
+4) Segurança
+   - Autenticação/autorização no admin (`middleware/adminAuth.js`), validações de entrada (`middleware/validation.js`).
+   - Manuseio de segredos/keys (nunca em VCS), origem de `keys.db` e permissões; checar acesso direto ao arquivo.
+   - Cabeçalhos HTTP, rate limiting, CORS, sanitização.
+
+5) Performance
+   - Ordem dos middlewares, uso de async/await correto, pontos de I/O bloqueante.
+   - Oportunidades de cache/ETag/compressão; no Vite, split de bundles e tree-shaking.
+
+6) Testabilidade e DX
+   - Sugerir testes mínimos (unit de utils/services; integração de rotas críticas).
+   - Scripts npm coerentes (dev, build, start), instruções claras no README.
+
+Entregáveis (formato da saída)
+- Sumário executivo (5–10 linhas): principais achados e ganhos esperados.
+- Recomendações priorizadas
+  - Formato: [Prioridade] Título — Descrição, risco, esforço, benefício, como validar.
+- Remoções sugeridas (código/arquivos/deps)
+  - Para cada item: Caminho/Nome — Motivo — Evidência de não uso (ex.: busca sem referências) — Risco — Plano de rollback.
+- Patches sugeridos
+  - Fornecer diffs em estilo unificado (---/+++/@@) ou em formato de patch por arquivo, mínimos e auto-explicativos.
+- Verificação
+  - Lista de checagens pós- mudança: build, lint, testes, smoke test manual (endpoints/fluxos principais), notas de compatibilidade.
+
+Heurísticas para remoção segura
+- Arquivo sem referências (grep por nome base e export), componente não utilizado, import não usado.
+- Código comentado antigo sem referência e sem justificativa.
+- Dependência não importada em código runtime ou duplicada (ex.: libs inclusas tanto na raiz quanto no dashboard sem uso).
+- Logs verbosos/temporários em produção; TODOs obsoletos.
+
+Políticas e restrições
+- Não alterar contratos públicos (rotas, payloads) sem apontar impacto e alternativa de migração.
+- Preservar estilo do projeto; mudanças grandes só se houver ganho claro e patch incremental.
+- Evitar mudanças destrutivas; sempre propor rollback simples.
+
+Modelo de saída (copie e preencha)
+
+## Sumário executivo
+- ...
+
+## Recomendações priorizadas
+- [Alta] ... — Descrição, risco, esforço, benefício, validação
+- [Média] ...
+- [Baixa] ...
+
+## Remoções sugeridas (código/arquivos/dependências)
+- caminho/arquivo ou nome da dependência — Motivo — Evidência — Risco — Rollback
+- ...
+
+## Patches sugeridos (diffs mínimos)
+*** Begin Patch
+*** Update File: caminho/arquivo.js
+@@
+- código antigo
++ código novo
+*** End Patch
+
+## Verificação pós-mudança
+- Build PASS/FAIL — Lint PASS/FAIL — Testes PASS/FAIL — Smoke test: endpoints X/Y/Z — Dashboard sobe e navega? — Notas.
+
+Checklist rápida a cumprir
+- [ ] Listar rotas e controllers com dependências.
+- [ ] Marcar imports/exports não usados e arquivos órfãos.
+- [ ] Mapear riscos de segurança evidentes (auth, validação, secrets, CORS, rate limiting).
+- [ ] Propor 3–5 quick wins com alto benefício/baixo risco.
+- [ ] Sugerir 1–2 refactors estruturados com plano incremental.
+- [ ] Preparar patches mínimos e plano de verificação.
+
+Observações específicas do repo (se relevantes)
+- Checar consistência entre `src/routes/*` e `controllers/*`.
+- Validar se `keys.db` deve estar versionado; se não, mover para `.gitignore` e documentar setup.
+- No dashboard, garantir que componentes e CSS não usados sejam removidos e que o build do Vite esteja enxuto.

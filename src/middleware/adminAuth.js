@@ -16,6 +16,12 @@ const adminUser = {
 };
 
 class AdminAuth {
+  constructor() {
+    // Simple in-memory rate limit per IP for login attempts
+    this.loginAttempts = new Map(); // ip -> { count, firstAt }
+    this.maxAttempts = parseInt(process.env.ADMIN_LOGIN_MAX_ATTEMPTS || '10');
+    this.windowMs = parseInt(process.env.ADMIN_LOGIN_WINDOW_MS || String(15 * 60 * 1000)); // 15 min
+  }
   /**
    * Generate session token
    */
@@ -27,6 +33,23 @@ class AdminAuth {
    * Authenticate admin login (username + password)
    */
   authenticate(req, res, next) {
+    // Basic IP rate limit
+    try {
+      const ip = getClientIp(req) || req.ip || 'unknown';
+      const now = Date.now();
+      const rec = this.loginAttempts.get(ip) || { count: 0, firstAt: now };
+      if (now - rec.firstAt > this.windowMs) {
+        rec.count = 0;
+        rec.firstAt = now;
+      }
+      if (rec.count >= this.maxAttempts) {
+        logger.warn(`Admin login rate limited for ${ip}`);
+        return res.status(429).json({ success: false, message: 'Too many attempts, try again later' });
+      }
+
+      this.loginAttempts.set(ip, rec);
+    } catch (_) {}
+
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -39,6 +62,15 @@ class AdminAuth {
   const isValid = username === adminUser.username && password === adminUser.password;
 
   if (!isValid) {
+      // increment attempts on invalid login
+      try {
+        const ip = getClientIp(req) || req.ip || 'unknown';
+        const rec = this.loginAttempts.get(ip);
+        if (rec) {
+          rec.count += 1;
+          this.loginAttempts.set(ip, rec);
+        }
+      } catch (_) {}
       logger.warn(`Failed admin login attempt from ${getClientIp(req)}`);
       return res.status(401).json({
         success: false,
@@ -56,6 +88,12 @@ class AdminAuth {
     };
 
     sessions.set(sessionToken, sessionData);
+
+    // reset attempts on success
+    try {
+      const ip = sessionData.ip || 'unknown';
+      this.loginAttempts.delete(ip);
+    } catch (_) {}
 
     // Set session cookie
     res.cookie('admin_session', sessionToken, {
