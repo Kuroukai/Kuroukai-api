@@ -158,7 +158,7 @@ function getClientIp(req) {
 
   // Known headers set by various proxies/CDNs
   const headers = req.headers || {};
-  const candidates = [];
+  const headerCandidates = [];
 
   // Forwarded: for="<client>", for=<client>
   const fwd = headers['forwarded'];
@@ -167,7 +167,7 @@ function getClientIp(req) {
     for (const p of parts) {
       const m = p.match(/for=([^;]+)/i);
       if (m && m[1]) {
-        candidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
+        headerCandidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
       }
     }
   }
@@ -184,24 +184,29 @@ function getClientIp(req) {
   ];
   for (const h of directHeaders) {
     const v = headers[h];
-    if (typeof v === 'string') candidates.push(v);
+    if (typeof v === 'string') headerCandidates.push(v);
   }
 
   // X-Forwarded-For may contain a list
   const xff = headers['x-forwarded-for'];
   if (xff && typeof xff === 'string') {
     const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
-    candidates.push(...ips);
+    headerCandidates.push(...ips);
   }
 
   // Finally, Express/Node derived addresses
-  const fallbacks = [
+  const fallbackCandidates = [
     req.ip,
     req.connection && req.connection.remoteAddress,
     req.socket && req.socket.remoteAddress,
     req.connection && req.connection.socket && req.connection.socket.remoteAddress
   ].filter(Boolean);
-  candidates.push(...fallbacks);
+
+  // Reorder based on preference: private -> prefer connection addresses first
+  const ipPref = (require('../config').ipPreference || 'public');
+  const candidates = (ipPref === 'private')
+    ? [...fallbackCandidates, ...headerCandidates]
+    : [...headerCandidates, ...fallbackCandidates];
 
   const bestPublic = pickFirstPublic(candidates);
   // Also compute first valid (even if private) for environments wanting LAN/VPN IP
@@ -262,24 +267,25 @@ function getIpVariants(req) {
     return '';
   };
   const headers = req.headers || {};
-  const candidates = [];
+  const headerCandidates = [];
   const fwd = headers['forwarded'];
   if (fwd && typeof fwd === 'string') {
     const parts = fwd.split(',');
     for (const p of parts) {
       const m = p.match(/for=([^;]+)/i);
-      if (m && m[1]) candidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
+      if (m && m[1]) headerCandidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
     }
   }
   const directHeaders = ['cf-connecting-ip','true-client-ip','x-real-ip','x-client-ip','fastly-client-ip','x-cluster-client-ip','fly-client-ip'];
   for (const h of directHeaders) {
     const v = headers[h];
-    if (typeof v === 'string') candidates.push(v);
+    if (typeof v === 'string') headerCandidates.push(v);
   }
   const xff = headers['x-forwarded-for'];
-  if (xff && typeof xff === 'string') candidates.push(...xff.split(',').map(s => s.trim()).filter(Boolean));
-  const fallbacks = [req.ip, req.connection && req.connection.remoteAddress, req.socket && req.socket.remoteAddress, req.connection && req.connection.socket && req.connection.socket.remoteAddress].filter(Boolean);
-  candidates.push(...fallbacks);
+  if (xff && typeof xff === 'string') headerCandidates.push(...xff.split(',').map(s => s.trim()).filter(Boolean));
+  const fallbackCandidates = [req.ip, req.connection && req.connection.remoteAddress, req.socket && req.socket.remoteAddress, req.connection && req.connection.socket && req.connection.socket.remoteAddress].filter(Boolean);
+  const ipPref = (require('../config').ipPreference || 'public');
+  const candidates = (ipPref === 'private') ? [...fallbackCandidates, ...headerCandidates] : [...headerCandidates, ...fallbackCandidates];
 
   const publicIp = pickFirstPublic(candidates) || null;
   const privateIp = (() => {
