@@ -1,20 +1,13 @@
 const express = require('express');
 const adminController = require('../controllers/adminController');
 const adminAuth = require('../middleware/adminAuth');
-const { body } = require('express-validator');
-const { handleValidationErrors } = require('../middleware/validation');
 
 const router = express.Router();
 
-// Canonicalize base path: ensure trailing slash for the admin root
-// router.get('', (req, res) => res.redirect(301, '/admin/'));
+// Canonicalization handled by vercel.json rewrites
 
 // Admin authentication routes (public)
-router.post('/auth/login', [
-  body('username').notEmpty().withMessage('Username is required'),
-  body('password').notEmpty().withMessage('Password is required'),
-  handleValidationErrors
-], adminAuth.authenticate.bind(adminAuth));
+router.post('/auth/login', adminAuth.authenticate.bind(adminAuth));
 
 router.post('/auth/logout', adminAuth.logout.bind(adminAuth));
 

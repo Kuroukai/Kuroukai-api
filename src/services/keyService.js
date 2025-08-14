@@ -209,7 +209,7 @@ class KeyService {
           };
         });
 
-        logger.info('Retrieved user keys:', {
+  logger.debug('Retrieved user keys:', {
           userId,
           keyCount: keys.length
         });
@@ -312,7 +312,9 @@ class KeyService {
   async getActiveKeysCount() {
     return new Promise((resolve, reject) => {
       const db = database.getDb();
-  const sql = 'SELECT COUNT(*) as count FROM access_keys WHERE status = "active" AND strftime("%s", expires_at) > strftime("%s", "now")';
+  const sql = 'SELECT COUNT(*) as count FROM access_keys\n' +
+      "WHERE status = 'active' AND " +
+      "strftime('%s', replace(replace(expires_at,'T',' '),'Z','')) > strftime('%s','now')";
 
       db.get(sql, [], (err, row) => {
         if (err) {
@@ -333,7 +335,8 @@ class KeyService {
   async getExpiredKeysCount() {
     return new Promise((resolve, reject) => {
       const db = database.getDb();
-  const sql = 'SELECT COUNT(*) as count FROM access_keys WHERE strftime("%s", expires_at) <= strftime("%s", "now") OR status = "expired"';
+  const sql = 'SELECT COUNT(*) as count FROM access_keys\n' +
+      "WHERE strftime('%s', replace(replace(expires_at,'T',' '),'Z','')) <= strftime('%s','now') OR status = 'expired'";
 
       db.get(sql, [], (err, row) => {
         if (err) {

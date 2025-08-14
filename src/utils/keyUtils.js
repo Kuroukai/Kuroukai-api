@@ -1,4 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
+const net = require('net');
+const config = require('../config');
 
 /**
  * Generate a unique key ID
@@ -93,6 +95,54 @@ function isValidUUID(uuid) {
   return uuidRegex.test(uuid);
 }
 
+// ---- IP helpers (compartilhados entre funções) ----
+const normalizeIp = (ip) => {
+  if (!ip) return '';
+  ip = String(ip).trim();
+  // Remove porta de [::1]:12345
+  if (ip.startsWith('[')) {
+    const end = ip.indexOf(']');
+    if (end !== -1) ip = ip.slice(1, end);
+  } else {
+    // IPv4:port
+    const colonIdx = ip.indexOf(':');
+    if (colonIdx !== -1 && ip.indexOf(':', colonIdx + 1) === -1) {
+      ip = ip.slice(0, colonIdx);
+    }
+  }
+  // IPv4 mapeado em IPv6
+  if (ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+  return ip;
+};
+
+const isPrivateIp = (ip) => {
+  if (!ip) return true;
+  if (ip === '127.0.0.1' || ip === '::1') return true;
+  if (ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
+  const o = ip.split('.').map(Number);
+  if (o.length === 4) {
+    // 172.16.0.0 – 172.31.255.255 e 169.254.0.0/16 (link-local)
+    if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return true;
+    if (o[0] === 169 && o[1] === 254) return true;
+  }
+  const low = ip.toLowerCase();
+  // IPv6 ULA (fc00::/7), ULA local (fd..) e link-local (fe80::/10)
+  if (low.startsWith('fc') || low.startsWith('fd') || low.startsWith('fe80:')) return true;
+  return false;
+};
+
+const pickFirstPublic = (list) => {
+  for (const raw of list) {
+    const ip = normalizeIp(raw);
+    if (net.isIP(ip) && !isPrivateIp(ip)) return ip;
+  }
+  for (const raw of list) {
+    const ip = normalizeIp(raw);
+    if (net.isIP(ip)) return ip;
+  }
+  return '';
+};
+
 /**
  * Extract client IP address from request, preferring real client IP behind proxies/CDNs
  * Tries common headers, parses lists, normalizes IPv6/IPv4-mapped, and skips private ranges.
@@ -100,62 +150,6 @@ function isValidUUID(uuid) {
  * @returns {string} Best-effort public client IP or fallback
  */
 function getClientIp(req) {
-  const net = require('net');
-
-  const normalize = (ip) => {
-    if (!ip) return '';
-    // Remove port if present (e.g., '1.2.3.4:12345' or '[::1]:12345')
-    ip = String(ip).trim();
-    if (ip.startsWith('[')) {
-      const end = ip.indexOf(']');
-      if (end !== -1) ip = ip.slice(1, end);
-    } else {
-      const colonIdx = ip.indexOf(':');
-      // If there is a single ':' and it's IPv4:port, strip port. IPv6 will have multiple ':'
-      if (colonIdx !== -1 && ip.indexOf(':', colonIdx + 1) === -1) {
-        ip = ip.slice(0, colonIdx);
-      }
-    }
-    // Unwrap IPv4-mapped IPv6
-    if (ip.startsWith('::ffff:')) {
-      ip = ip.replace('::ffff:', '');
-    }
-    return ip;
-  };
-
-  const isPrivate = (ip) => {
-    // Quick checks for private/reserved ranges
-    if (!ip) return true;
-    if (ip === '127.0.0.1' || ip === '::1') return true;
-    if (ip.startsWith('10.')) return true;
-    if (ip.startsWith('192.168.')) return true;
-    const octets = ip.split('.').map(Number);
-    if (octets.length === 4) {
-      // 172.16.0.0 – 172.31.255.255
-      if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true;
-      // 169.254.0.0/16 link-local
-      if (octets[0] === 169 && octets[1] === 254) return true;
-    }
-    // IPv6 unique local (fc00::/7) or link-local (fe80::/10)
-    const lower = ip.toLowerCase();
-    if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
-    if (lower.startsWith('fe80:')) return true;
-    return false;
-  };
-
-  const pickFirstPublic = (list) => {
-    for (const raw of list) {
-      const ip = normalize(raw);
-      if (net.isIP(ip) && !isPrivate(ip)) return ip;
-    }
-    // Fallback to first valid even if private
-    for (const raw of list) {
-      const ip = normalize(raw);
-      if (net.isIP(ip)) return ip;
-    }
-    return '';
-  };
-
   // Known headers set by various proxies/CDNs
   const headers = req.headers || {};
   const headerCandidates = [];
@@ -167,7 +161,7 @@ function getClientIp(req) {
     for (const p of parts) {
       const m = p.match(/for=([^;]+)/i);
       if (m && m[1]) {
-        headerCandidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
+  headerCandidates.push(m[1].replace(/\"/g, '').replace(/"/g, ''));
       }
     }
   }
@@ -203,7 +197,7 @@ function getClientIp(req) {
   ].filter(Boolean);
 
   // Reorder based on preference: private -> prefer connection addresses first
-  const ipPref = (require('../config').ipPreference || 'public');
+  const ipPref = (config.ipPreference || 'public');
   const candidates = (ipPref === 'private')
     ? [...fallbackCandidates, ...headerCandidates]
     : [...headerCandidates, ...fallbackCandidates];
@@ -212,13 +206,13 @@ function getClientIp(req) {
   // Also compute first valid (even if private) for environments wanting LAN/VPN IP
   const firstValid = (() => {
     for (const raw of candidates) {
-      const ip = normalize(raw);
+      const ip = normalizeIp(raw);
       if (net.isIP(ip)) return ip;
     }
     return '';
   })();
 
-  const chosen = (require('../config').ipPreference === 'private') ? (firstValid || bestPublic) : (bestPublic || firstValid);
+  const chosen = (config.ipPreference === 'private') ? (firstValid || bestPublic) : (bestPublic || firstValid);
   return chosen || 'unknown';
 }
 
@@ -226,46 +220,6 @@ function getClientIp(req) {
  * Return both IP variants for diagnostics (public-preferred and first-valid)
  */
 function getIpVariants(req) {
-  const net = require('net');
-  const normalize = (ip) => {
-    if (!ip) return '';
-    ip = String(ip).trim();
-    if (ip.startsWith('[')) {
-      const end = ip.indexOf(']');
-      if (end !== -1) ip = ip.slice(1, end);
-    } else {
-      const colonIdx = ip.indexOf(':');
-      if (colonIdx !== -1 && ip.indexOf(':', colonIdx + 1) === -1) {
-        ip = ip.slice(0, colonIdx);
-      }
-    }
-    if (ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
-    return ip;
-  };
-  const isPrivate = (ip) => {
-    if (!ip) return true;
-    if (ip === '127.0.0.1' || ip === '::1') return true;
-    if (ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
-    const o = ip.split('.').map(Number);
-    if (o.length === 4) {
-      if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return true;
-      if (o[0] === 169 && o[1] === 254) return true;
-    }
-    const low = ip.toLowerCase();
-    if (low.startsWith('fc') || low.startsWith('fd') || low.startsWith('fe80:')) return true;
-    return false;
-  };
-  const pickFirstPublic = (list) => {
-    for (const raw of list) {
-      const ip = normalize(raw);
-      if (net.isIP(ip) && !isPrivate(ip)) return ip;
-    }
-    for (const raw of list) {
-      const ip = normalize(raw);
-      if (net.isIP(ip)) return ip;
-    }
-    return '';
-  };
   const headers = req.headers || {};
   const headerCandidates = [];
   const fwd = headers['forwarded'];
@@ -284,12 +238,12 @@ function getIpVariants(req) {
   const xff = headers['x-forwarded-for'];
   if (xff && typeof xff === 'string') headerCandidates.push(...xff.split(',').map(s => s.trim()).filter(Boolean));
   const fallbackCandidates = [req.ip, req.connection && req.connection.remoteAddress, req.socket && req.socket.remoteAddress, req.connection && req.connection.socket && req.connection.socket.remoteAddress].filter(Boolean);
-  const ipPref = (require('../config').ipPreference || 'public');
+  const ipPref = (config.ipPreference || 'public');
   const candidates = (ipPref === 'private') ? [...fallbackCandidates, ...headerCandidates] : [...headerCandidates, ...fallbackCandidates];
 
   const publicIp = pickFirstPublic(candidates) || null;
   const privateIp = (() => {
-    for (const raw of candidates) { const ip = normalize(raw); if (net.isIP(ip)) return ip; }
+    for (const raw of candidates) { const ip = normalizeIp(raw); if (net.isIP(ip)) return ip; }
     return null;
   })();
   return { publicIp, privateIp };

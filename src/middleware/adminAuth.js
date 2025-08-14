@@ -1,5 +1,6 @@
 const Logger = require('../utils/logger');
 const config = require('../config');
+const { getClientIp } = require('../utils/keyUtils');
 
 const logger = new Logger(config.logging.level);
 
@@ -37,8 +38,7 @@ class AdminAuth {
 
   const isValid = username === adminUser.username && password === adminUser.password;
 
-    if (!isValid) {
-      const { getClientIp } = require('../utils/keyUtils');
+  if (!isValid) {
       logger.warn(`Failed admin login attempt from ${getClientIp(req)}`);
       return res.status(401).json({
         success: false,
@@ -48,7 +48,6 @@ class AdminAuth {
 
     // Create session
     const sessionToken = this.generateSession();
-    const { getClientIp } = require('../utils/keyUtils');
     const sessionData = {
       id: sessionToken,
       createdAt: new Date(),

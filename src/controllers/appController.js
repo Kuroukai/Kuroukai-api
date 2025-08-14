@@ -49,9 +49,9 @@ class AppController {
   getTestPage(req, res) {
     const { keyId } = req.params;
 
-    // Validate keyId format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(keyId)) {
+  // Validate keyId format using shared util
+  const { isValidUUID } = require('../utils/keyUtils');
+  if (!isValidUUID(keyId)) {
       return res.status(400).send(`
 <!DOCTYPE html>
 <html lang="en">
@@ -88,15 +88,10 @@ class AppController {
    * Simple endpoint to echo detected client IP (uses util.getClientIp)
    */
   getClientIp(req, res) {
-    const { getClientIp, getIpVariants } = require('../utils/keyUtils');
-    const ip = getClientIp(req);
-    const variants = getIpVariants(req);
-    res.json({ ip, variants, raw: {
-      req_ip: req.ip,
-      x_forwarded_for: req.headers['x-forwarded-for'] || null,
-      x_real_ip: req.headers['x-real-ip'] || null,
-      cf_connecting_ip: req.headers['cf-connecting-ip'] || null
-    }});
+  const { getClientIp, getIpVariants } = require('../utils/keyUtils');
+  const ip = getClientIp(req);
+  const variants = getIpVariants(req);
+  res.json({ ip, variants });
   }
 }
 
