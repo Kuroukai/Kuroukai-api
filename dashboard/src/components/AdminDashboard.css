@@ -10,13 +10,17 @@ html, body {
   margin: 0;
   padding: 0;
   background: #0a0b0e;
-  overflow-x: hidden; /* evita arrastar para os lados por causa de 100vw/scrollbar */
+  /* Evita rolagem no body; a rolagem acontece apenas na área de conteúdo */
+  overflow: hidden;
 }
 
 .admin-dashboard {
   display: flex;
+  /* Fallback + novo viewport dinâmico para evitar "saltos" de barra de endereço no mobile */
   min-height: 100vh;
   height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   width: 100%; /* evita overflow causado por 100vw + barra de rolagem */
   background: #0a0b0e;
   color: #ffffff;
@@ -31,7 +35,9 @@ html, body {
   flex-direction: column;
   margin-left: 260px;
   transition: margin-left 0.3s ease;
+  /* Fallback + viewport dinâmico */
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden; /* garante que conteúdo interno não force scroll horizontal */
 }
 
@@ -96,6 +102,13 @@ html, body {
   padding: 32px;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Estiliza/oculta a barra de rolagem para evitar a "barra branca" no Windows */
+  scrollbar-width: none; /* Firefox: oculta */
+}
+
+.content-body::-webkit-scrollbar {
+  width: 0; /* Chrome/Safari/Edge: oculta */
+  height: 0;
 }
 
 /* Esconde a barra de rolagem mantendo o scroll funcional (apenas quando aplicado) */
